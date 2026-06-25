@@ -1,0 +1,30 @@
+======================================================================
+GOLD PSYCHOPHYSICS v3 -- REPORT
+Generated: 2026-06-24
+NOTE: Install reportlab for PDF:  python3 -m pip install reportlab
+Current interpreter: /Library/Developer/CommandLineTools/usr/bin/python3
+======================================================================
+
+PERFORMANCE
+  HAR-RV R2       : 0.313
+  RF Baseline R2  : 0.079
+  Augmented R2    : 0.125
+
+FEATURE IMPORTANCE
+  RV20                               : 31.0%
+  RV60                               : 21.0%
+  DXY                                : 7.0%
+  US10Y                              : 7.0%
+  RegimeDuration                     : 6.0%
+  CrisisProb                         : 4.0%
+  PsychophysicalPositioning          : 3.0%
+  SpecPressure                       : 3.0%
+
+SHAP NARRATIVE
+  + RV20  (+0.83)  Increases forecast vol
+  - DealerPressure  (-0.01)  Decreases forecast vol
+
+REGIME BREAKDOWN
+  Calm          :  122 weeks  (12.1%)  avg RV=11.98%
+  Transitional  :  520 weeks  (51.5%)  avg RV=14.30%
+  Crisis        :  367 weeks  (36.4%)  avg RV=21.77%
