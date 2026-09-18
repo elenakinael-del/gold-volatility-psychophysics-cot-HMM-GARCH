@@ -66,6 +66,7 @@ from regime_detection import fit_regimes, add_regime_features, plot_regimes
 from shap_analysis import run_shap_analysis, narrative_explanation
 from shap_analysis import plot_shap_summary, plot_shap_waterfall, plot_feature_importance_comparison
 from pdf_export import generate_report
+from evaluation import walk_forward_scores
 
 
 # ===========================================================================
@@ -205,7 +206,7 @@ def add_perceived_vol(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_feature_list(df: pd.DataFrame, include_regime: bool = True) -> List[str]:
+def get_feature_list(df: pd.DataFrame, include_regime: bool = False) -> List[str]:
     """Return all available features that exist in the dataframe."""
     all_features = (
         FEATURES_BASELINE +
@@ -450,8 +451,9 @@ def run_pipeline(cot_path: str, horizon: int = 4, skip_cot_rebuild: bool = False
     df = add_perceived_vol(df)
 
     # ------------------------------------------------------------------
-    # Step 4: Regime detection (before feature selection so regime
-    #         columns are available as features)
+    # Step 4: Regime detection is descriptive only. It is deliberately
+    # excluded from predictive features: fitting it on the entire sample
+    # would allow information from the holdout period to affect a forecast.
     # ------------------------------------------------------------------
     df = fit_regimes(df, n_states=3)
     df = add_regime_features(df)
@@ -486,8 +488,8 @@ def run_pipeline(cot_path: str, horizon: int = 4, skip_cot_rebuild: bool = False
     # ------------------------------------------------------------------
     # Step 7b: RF — full augmented (all features)
     # ------------------------------------------------------------------
-    print("\n--- RF Augmented (full psychophysical + COT + regime) ---")
-    features_full = get_feature_list(df, include_regime=True)
+    print("\n--- RF Augmented (psychophysical + COT; no fitted regime labels) ---")
+    features_full = get_feature_list(df, include_regime=False)
     df_full       = df.dropna(subset=features_full + ["FutureRV"])
     X_tr2, X_te2, y_tr2, y_te2, idx_tr2, idx_te2 = train_test_split_ts(
         df_full, features_full
@@ -497,6 +499,14 @@ def run_pipeline(cot_path: str, horizon: int = 4, skip_cot_rebuild: bool = False
     )
 
     preds_aug = rf_aug.predict(X_te2)
+
+    # Expanding-window validation complements the final untouched holdout.
+    # It exposes fold-to-fold instability rather than relying on one score.
+    wf_scores = walk_forward_scores(
+        rf_aug, df_full[features_full], df_full["FutureRV"], n_splits=5
+    )
+    wf_scores.to_csv(save_dir / "walk_forward_metrics.csv", index=False)
+    print("[main] Walk-forward metrics saved -> outputs/walk_forward_metrics.csv")
 
     # ------------------------------------------------------------------
     # Step 8: SHAP
